@@ -28,8 +28,8 @@ app.post("/command", (req, res) => {
     res.send({ status: "OK" });
 });
 
-app.listen(3000, () => {
-    console.log("🔥 Bridge server running on port 3000");
+app.listen(process.env.PORT || 3000, () => {
+    console.log("🔥 Bridge server running");
 });
 
 // ---------------------------
