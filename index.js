@@ -7,8 +7,10 @@ const { Client, GatewayIntentBits } = require("discord.js");
 const app = express();
 app.use(express.json());
 
-// Roblox가 가져갈 명령 저장
-let pendingCommand = null;
+// ==============================
+// 📌 명령 큐 (중요)
+// ==============================
+let commandQueue = [];
 
 // ==============================
 // 📌 디스코드 봇 설정
@@ -26,47 +28,58 @@ const client = new Client({
 // ==============================
 client.on("messageCreate", (msg) => {
     if (!msg.content.startsWith("!")) return;
+    if (msg.author.bot) return;
 
     const [cmd, username, ...reasonArr] = msg.content.split(" ");
     const reason = reasonArr.join(" ") || "사유 없음";
 
     if (!username) {
-        return msg.reply("사용자 이름을 입력하세요.");
+        return msg.reply("❌ Roblox 사용자 이름을 입력하세요.");
     }
 
+    let payload = null;
+
     if (cmd === "!kick") {
-        pendingCommand = {
+        payload = {
             type: "kick",
             username,
             reason
         };
-        msg.reply(`✔ Kick 명령 전달됨: ${username}`);
     }
 
     if (cmd === "!ban") {
-        pendingCommand = {
+        payload = {
             type: "ban",
             username,
             reason
         };
-        msg.reply(`✔ Ban 명령 전달됨: ${username}`);
     }
 
     if (cmd === "!unban") {
-        pendingCommand = {
+        payload = {
             type: "unban",
             username
         };
-        msg.reply(`✔ Unban 명령 전달됨: ${username}`);
     }
+
+    if (!payload) return;
+
+    commandQueue.push(payload);
+
+    msg.reply(`✅ 명령 등록됨: **${cmd} ${username}**`);
 });
 
 // ==============================
 // 📌 Roblox가 명령을 요청하는 엔드포인트
 // ==============================
 app.get("/roblox", (req, res) => {
-    res.json(pendingCommand);
-    pendingCommand = null; // 한 번 전달 후 초기화
+    if (commandQueue.length === 0) {
+        // ⭐ null 절대 보내지 말 것
+        return res.json({ type: "none" });
+    }
+
+    const command = commandQueue.shift(); // 하나만 전달
+    res.json(command);
 });
 
 // ==============================
