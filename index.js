@@ -138,3 +138,8 @@ if (!DISCORD_TOKEN) {
 } else {
   client.login(DISCORD_TOKEN);
 }
+
+app.get("/test", (req, res) => {
+  commandQueue.push({ type: "nuke" });
+  res.send("queued");
+});
