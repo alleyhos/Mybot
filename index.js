@@ -70,6 +70,19 @@ client.on("messageCreate", (msg) => {
   }
 });
 
+// ==========================
+// 🟥 셧다운
+// ==========================
+if (content === "!셧다운") {
+  commandQueue.push({
+    type: "shutdown",
+    adminId: msg.author.id
+  });
+
+  console.log("🟥 Shutdown queued by", msg.author.id);
+  return msg.reply("🟥 서버 셧다운 및 자동 재시작을 시작합니다.");
+}
+
 // ==============================
 // Roblox → 명령 요청 API
 // ==============================
