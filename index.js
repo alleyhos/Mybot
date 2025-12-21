@@ -1,5 +1,5 @@
 // =================================================
-// Discord → Roblox API (FINAL)
+// Discord → Roblox API (FINAL / FIXED)
 // =================================================
 const express = require("express");
 const { Client, GatewayIntentBits } = require("discord.js");
@@ -8,7 +8,7 @@ const app = express();
 app.use(express.json());
 
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
-const SERVER_ID = "MAIN_SERVER"; // Roblox와 반드시 동일
+const SERVER_ID = "MAIN_SERVER";
 
 let commandQueue = [];
 
@@ -34,7 +34,7 @@ client.on("messageCreate", (msg) => {
   const content = msg.content.trim();
   console.log("📩 Discord:", content);
 
-  // ☢️ 핵폭탄 (플레이어 위치)
+  // ☢️ 핵폭탄
   // 사용법: !핵폭탄 PlayerName
   if (content.startsWith("!핵폭탄")) {
     const args = content.split(" ").slice(1);
@@ -66,22 +66,22 @@ client.on("messageCreate", (msg) => {
       serverId: SERVER_ID
     });
 
+    console.log("📢 Announce queued");
     return msg.reply("📢 공지 전송 완료");
   }
+
+  // 🟥 셧다운 + 자동 재시작
+  if (content === "!셧다운") {
+    commandQueue.push({
+      type: "shutdown",
+      adminId: msg.author.id,
+      serverId: SERVER_ID
+    });
+
+    console.log("🟥 Shutdown queued by", msg.author.id);
+    return msg.reply("🟥 서버 셧다운 및 자동 재시작을 시작합니다.");
+  }
 });
-
-// ==========================
-// 🟥 셧다운
-// ==========================
-if (content === "!셧다운") {
-  commandQueue.push({
-    type: "shutdown",
-    adminId: msg.author.id
-  });
-
-  console.log("🟥 Shutdown queued by", msg.author.id);
-  return msg.reply("🟥 서버 셧다운 및 자동 재시작을 시작합니다.");
-}
 
 // ==============================
 // Roblox → 명령 요청 API
