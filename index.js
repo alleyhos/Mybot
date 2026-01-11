@@ -1,6 +1,7 @@
 // =================================================
-// Discord → Roblox API (FINAL / FULL FIX)
+// Discord → Roblox API (FINAL)
 // =================================================
+require("dotenv").config();
 const express = require("express");
 const { Client, GatewayIntentBits } = require("discord.js");
 
@@ -10,7 +11,7 @@ app.use(express.json());
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 const SERVER_ID = "MAIN_SERVER";
 
-// 🔐 관리자 Discord ID
+// 🔐 허용된 관리자 Discord ID
 const ALLOWED_ADMINS = [
   "1279230301117087869",
   "1077805361647587440"
@@ -29,7 +30,6 @@ const client = new Client({
   ]
 });
 
-// ✅ 올바른 ready 이벤트
 client.once("ready", () => {
   console.log(`🤖 Discord bot logged in as ${client.user.tag}`);
 });
@@ -37,49 +37,23 @@ client.once("ready", () => {
 client.on("messageCreate", (msg) => {
   if (msg.author.bot) return;
   if (!msg.content.startsWith("!")) return;
-
-  // 🔐 관리자 체크
   if (!ALLOWED_ADMINS.includes(msg.author.id)) {
     return msg.reply("❌ 권한이 없습니다.");
   }
 
-  const content = msg.content.trim();
-  const args = content.split(" ");
-  const command = args.shift();
+  const args = msg.content.trim().split(" ");
+  const command = args.shift().toLowerCase();
 
-  console.log("📩 Discord:", content);
-
-  // 공통 payload
   const basePayload = {
     commandId: Date.now().toString(),
     adminId: msg.author.id,
     serverId: SERVER_ID
   };
 
-  // ☢️ 핵폭탄
-  // !핵폭탄 PlayerName
-  if (command === "!핵폭탄") {
-    if (args.length !== 1) {
-      return msg.reply("❌ 사용법: !핵폭탄 플레이어이름");
-    }
-
-    commandQueue.push({
-      ...basePayload,
-      type: "nuke",
-      targetPlayer: args[0]
-    });
-
-    console.log("💣 Nuke queued:", args[0]);
-    return msg.reply(`☢️ ${args[0]} 위치에 핵폭탄 투하 준비`);
-  }
-
   // 📢 공지
-  // !공지 내용
   if (command === "!공지") {
     const message = args.join(" ");
-    if (!message) {
-      return msg.reply("❌ 공지 내용을 입력하세요.");
-    }
+    if (!message) return msg.reply("❌ 공지 내용을 입력하세요.");
 
     commandQueue.push({
       ...basePayload,
@@ -87,17 +61,12 @@ client.on("messageCreate", (msg) => {
       message
     });
 
-    console.log("📢 Announce queued");
     return msg.reply("📢 공지 전송 완료");
   }
 
   // 👢 Kick
-  // !kick PlayerName 사유
   if (command === "!kick") {
-    if (args.length < 1) {
-      return msg.reply("❌ 사용법: !kick 플레이어이름 [사유]");
-    }
-
+    if (args.length < 1) return msg.reply("❌ 사용법: !kick 플레이어 [사유]");
     const targetPlayer = args.shift();
     const reason = args.join(" ") || "관리자에 의해 추방됨";
 
@@ -108,17 +77,12 @@ client.on("messageCreate", (msg) => {
       reason
     });
 
-    console.log("👢 Kick queued:", targetPlayer);
     return msg.reply(`👢 ${targetPlayer} Kick 요청 완료`);
   }
 
   // 🚫 Ban
-  // !ban PlayerName 사유
   if (command === "!ban") {
-    if (args.length < 1) {
-      return msg.reply("❌ 사용법: !ban 플레이어이름 [사유]");
-    }
-
+    if (args.length < 1) return msg.reply("❌ 사용법: !ban 플레이어 [사유]");
     const targetPlayer = args.shift();
     const reason = args.join(" ") || "영구 밴";
 
@@ -129,8 +93,33 @@ client.on("messageCreate", (msg) => {
       reason
     });
 
-    console.log("🚫 Ban queued:", targetPlayer);
     return msg.reply(`🚫 ${targetPlayer} Ban 요청 완료`);
+  }
+
+  // ♻️ Unban
+  if (command === "!unban") {
+    if (args.length !== 1) return msg.reply("❌ 사용법: !unban 플레이어");
+
+    commandQueue.push({
+      ...basePayload,
+      type: "unban",
+      targetPlayer: args[0]
+    });
+
+    return msg.reply(`♻️ ${args[0]} Unban 요청 완료`);
+  }
+
+  // ☢️ 핵폭탄
+  if (command === "!핵폭탄") {
+    if (args.length !== 1) return msg.reply("❌ 사용법: !핵폭탄 플레이어");
+
+    commandQueue.push({
+      ...basePayload,
+      type: "nuke",
+      targetPlayer: args[0]
+    });
+
+    return msg.reply("☢️ 핵폭탄 투하 명령 전송");
   }
 
   // 🟥 셧다운
@@ -140,8 +129,18 @@ client.on("messageCreate", (msg) => {
       type: "shutdown"
     });
 
-    console.log("🟥 Shutdown queued");
-    return msg.reply("🟥 서버 셧다운 및 자동 재시작을 시작합니다.");
+    return msg.reply("🟥 서버 셧다운 명령 전송");
+  }
+
+  // 🧪 Ping 테스트
+  if (command === "!ping") {
+    commandQueue.push({
+      ...basePayload,
+      type: "announce",
+      message: "✅ Discord ↔ Roblox 연결 정상 (PING)"
+    });
+
+    return msg.reply("pong");
   }
 });
 
@@ -152,10 +151,7 @@ app.get("/roblox", (req, res) => {
   const serverId = req.query.serverId;
   if (!serverId) return res.json({ type: "none" });
 
-  const index = commandQueue.findIndex(
-    (cmd) => cmd.serverId === serverId
-  );
-
+  const index = commandQueue.findIndex(c => c.serverId === serverId);
   if (index === -1) return res.json({ type: "none" });
 
   const cmd = commandQueue.splice(index, 1)[0];
@@ -168,5 +164,4 @@ app.listen(process.env.PORT || 3000, () => {
   console.log("🚀 Roblox API running");
 });
 
-// ==============================
 client.login(DISCORD_TOKEN);
