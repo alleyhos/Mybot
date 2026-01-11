@@ -1,9 +1,13 @@
 {
-  "name": "mybot",
+  "name": "roblox-discord-api",
   "version": "1.0.0",
+  "description": "Discord → Roblox Command API",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   },
   "dependencies": {
     "dotenv": "^16.3.1",
